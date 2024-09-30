@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final loginFormKey = GlobalKey<FormState>();
   String? email, password;
   final GetIt getIt = GetIt.instance;
+  bool isLoading = false;
 
   late AuthService authService;
   late NavigationService navigationService;
@@ -108,7 +109,13 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(
                 width: MediaQuery.sizeOf(context).width,
                 child: MaterialButton(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 5,
+                  ),
                   onPressed: () async {
+                    setState(() {
+                      isLoading = true;
+                    });
                     if (loginFormKey.currentState?.validate() ?? false) {
                       loginFormKey.currentState?.save();
                       bool result = await authService.login(
@@ -124,15 +131,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           icon: Icons.error,
                         );
                       }
+                      setState(() {
+                        isLoading = false;
+                      });
                     }
                   },
                   color: Theme.of(context).colorScheme.primary,
-                  child: const Text(
-                    'Login',
-                    style: TextStyle(
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: isLoading == true
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 1.5,
+                          ),
+                        )
+                      : const Text(
+                          'Login',
+                          style: TextStyle(
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
               Expanded(

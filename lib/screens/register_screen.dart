@@ -1,8 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_firebase_chat_app/consts.dart';
+import 'package:flutter_firebase_chat_app/models/user_profile.dart';
+import 'package:flutter_firebase_chat_app/services/alert_service.dart';
+import 'package:flutter_firebase_chat_app/services/auth_service.dart';
+import 'package:flutter_firebase_chat_app/services/database_service.dart';
 import 'package:flutter_firebase_chat_app/services/media_service.dart';
 import 'package:flutter_firebase_chat_app/services/navigation_service.dart';
+import 'package:flutter_firebase_chat_app/services/storage_service.dart';
 import 'package:flutter_firebase_chat_app/widgets/custom_form_field.dart';
 import 'package:get_it/get_it.dart';
 
@@ -18,9 +23,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final GetIt getIt = GetIt.instance;
 
   String? name, email, password;
+  bool isLoading = false;
 
+  late AuthService authService;
+  late AlertService alertService;
   late MediaService mediaService;
   late NavigationService navigationService;
+  late StorageService storageService;
+  late DatabaseService databaseService;
   File? selectedImage;
 
   @override
@@ -28,6 +38,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.initState();
     mediaService = getIt.get<MediaService>();
     navigationService = getIt.get<NavigationService>();
+    authService = getIt.get<AuthService>();
+    storageService = getIt.get<StorageService>();
+    alertService = getIt.get<AlertService>();
+    databaseService = getIt.get<DatabaseService>();
   }
 
   @override
@@ -68,7 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               Container(
-                height: MediaQuery.sizeOf(context).height * 0.40,
+                height: MediaQuery.sizeOf(context).height * 0.60,
                 margin: EdgeInsets.symmetric(
                   vertical: MediaQuery.sizeOf(context).height * 0.05,
                 ),
@@ -135,31 +149,77 @@ class _RegisterScreenState extends State<RegisterScreen> {
               SizedBox(
                 width: MediaQuery.sizeOf(context).width,
                 child: MaterialButton(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 3,
+                  ),
                   onPressed: () async {
-                    if (registerFormKey.currentState?.validate() ?? false) {
-                      registerFormKey.currentState?.save();
-                      // bool result = await authService.login(
-                      //   email!,
-                      //   password!,
-                      // );
-                      // print(result);
-                      // if (result) {
-                      //   navigationService.pushReplacementNamed("/home");
-                      // } else {
-                      //   alertService.showToast(
-                      //     text: "Failed to login, Please try again!",
-                      //     icon: Icons.error,
-                      //   );
-                      // }
+                    setState(() {
+                      isLoading = true;
+                    });
+                    try {
+                      if ((registerFormKey.currentState?.validate() ?? false) &&
+                          selectedImage != null) {
+                        registerFormKey.currentState?.save();
+                        bool result = await authService.signup(
+                          email!,
+                          password!,
+                        );
+                        // name = null;
+                        // email = null;
+                        // password = null;
+                        print(result);
+                        if (result) {
+                          String? pfpUrl = await storageService.uploadUserPfp(
+                            file: selectedImage!,
+                            uid: authService.user!.uid,
+                          );
+                          if (pfpUrl != null) {
+                            await databaseService.createUserProfile(
+                              userProfile: UserProfile(
+                                uid: authService.user!.uid,
+                                name: name,
+                                pfpUrl: pfpUrl,
+                              ),
+                            );
+                            alertService.showToast(
+                              text: "User registered successfully!",
+                              icon: Icons.check,
+                            );
+                            navigationService.pushReplacementNamed("/login");
+                          } else {
+                            throw Exception(
+                                "Unable to upload user profile picture.");
+                          }
+                          print(result);
+                        } else {
+                          throw Exception("Unable to register user.");
+                        }
+                      }
+                    } catch (e) {
+                      print("Exception: $e");
+                      alertService.showToast(
+                        text: "Failed to register, Please try again!",
+                        icon: Icons.error,
+                      );
                     }
+                    setState(() {
+                      isLoading = false;
+                    });
                   },
                   color: Theme.of(context).colorScheme.primary,
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: isLoading == true
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 1.5,
+                          ),
+                        )
+                      : const Text(
+                          'Register',
+                          style: TextStyle(
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
               Expanded(
