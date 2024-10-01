@@ -1,4 +1,6 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_firebase_chat_app/screens/chat_screen.dart';
 import 'package:flutter_firebase_chat_app/screens/home_screen.dart';
 import 'package:flutter_firebase_chat_app/screens/login_screen.dart';
 import 'package:flutter_firebase_chat_app/screens/register_screen.dart';
@@ -22,6 +24,10 @@ class NavigationService {
 
   NavigationService() {
     _navigatorKey = GlobalKey<NavigatorState>();
+  }
+
+  void push(MaterialPageRoute route) {
+    _navigatorKey.currentState?.push(route);
   }
 
   void pushNamed(String routeName) {

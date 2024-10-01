@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_firebase_chat_app/models/user_profile.dart';
+import 'package:flutter_firebase_chat_app/screens/chat_screen.dart';
 import 'package:flutter_firebase_chat_app/services/alert_service.dart';
 import 'package:flutter_firebase_chat_app/services/auth_service.dart';
 import 'package:flutter_firebase_chat_app/services/database_service.dart';
@@ -78,7 +79,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: ChatTile(
                         userProfile: user,
-                        onTap: () async {},
+                        onTap: () async {
+                          final chatExists =
+                              await databaseService.checkChatExists(
+                            authService.user!.uid,
+                            user.uid!,
+                          );
+
+                          print(chatExists);
+                          if (!chatExists) {
+                            await databaseService.createNewChat(
+                              authService.user!.uid,
+                              user.uid!,
+                            );
+                          }
+                          navigationService.push(
+                            MaterialPageRoute(builder: (context) {
+                              return ChatScreen(
+                                userProfile: user,
+                              );
+                            }),
+                          );
+                        },
                       ),
                     );
                   },
