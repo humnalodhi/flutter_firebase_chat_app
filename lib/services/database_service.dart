@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_firebase_chat_app/models/chat.dart';
+import 'package:flutter_firebase_chat_app/models/message.dart';
 import 'package:flutter_firebase_chat_app/models/user_profile.dart';
 import 'package:flutter_firebase_chat_app/services/auth_service.dart';
 import 'package:flutter_firebase_chat_app/utils/utils.dart';
@@ -65,5 +66,33 @@ class DatabaseService {
       messages: [],
     );
     await docRef.set(chat);
+  }
+
+  Future<void> sendChatMessage(
+      String uid1, String uid2, Message message) async {
+    String chatID = generateChatID(
+      uid1: uid1,
+      uid2: uid2,
+    );
+    final docRef = chatsCollection!.doc(chatID);
+    await docRef.update(
+      {
+        "messages": FieldValue.arrayUnion(
+          [
+            message.toJson(),
+          ],
+        ),
+      },
+    );
+  }
+
+  Stream<DocumentSnapshot<Chat>> getChatData(String uid1, String uid2) {
+    String chatID = generateChatID(
+      uid1: uid1,
+      uid2: uid2,
+    );
+
+    return chatsCollection?.doc(chatID).snapshots()
+        as Stream<DocumentSnapshot<Chat>>;
   }
 }
