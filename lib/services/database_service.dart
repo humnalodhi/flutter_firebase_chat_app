@@ -45,8 +45,14 @@ class DatabaseService {
         .snapshots() as Stream<QuerySnapshot<UserProfile>>;
   }
 
-  Future<bool> checkChatExists(String uid1, String uid2) async {
-    String chatID = generateChatID(uid1: uid1, uid2: uid2);
+  Future<bool> checkChatExists(
+    String uid1,
+    String uid2,
+  ) async {
+    String chatID = generateChatID(
+      uid1: uid1,
+      uid2: uid2,
+    );
     final result = await chatsCollection?.doc(chatID).get();
     if (result != null) {
       return result.exists;
@@ -54,7 +60,10 @@ class DatabaseService {
     return false;
   }
 
-  Future<void> createNewChat(String uid1, String uid2) async {
+  Future<void> createNewChat(
+    String uid1,
+    String uid2,
+  ) async {
     String chatID = generateChatID(
       uid1: uid1,
       uid2: uid2,
@@ -69,7 +78,10 @@ class DatabaseService {
   }
 
   Future<void> sendChatMessage(
-      String uid1, String uid2, Message message) async {
+    String uid1,
+    String uid2,
+    Message message,
+  ) async {
     String chatID = generateChatID(
       uid1: uid1,
       uid2: uid2,
@@ -86,7 +98,10 @@ class DatabaseService {
     );
   }
 
-  Stream<DocumentSnapshot<Chat>> getChatData(String uid1, String uid2) {
+  Stream<DocumentSnapshot<Chat>> getChatData(
+    String uid1,
+    String uid2,
+  ) {
     String chatID = generateChatID(
       uid1: uid1,
       uid2: uid2,

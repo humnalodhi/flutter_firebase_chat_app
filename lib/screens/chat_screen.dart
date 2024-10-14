@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import 'package:flutter_firebase_chat_app/models/user_profile.dart';
 import 'package:flutter_firebase_chat_app/services/auth_service.dart';
 import 'package:flutter_firebase_chat_app/services/database_service.dart';
 import 'package:flutter_firebase_chat_app/services/media_service.dart';
+import 'package:flutter_firebase_chat_app/services/storage_service.dart';
 import 'package:flutter_firebase_chat_app/utils/utils.dart';
 import 'package:get_it/get_it.dart';
 
@@ -30,6 +30,7 @@ class _ChatScreenState extends State<ChatScreen> {
   late AuthService authService;
   late DatabaseService databaseService;
   late MediaService mediaService;
+  late StorageService storageService;
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _ChatScreenState extends State<ChatScreen> {
     authService = getIt.get<AuthService>();
     databaseService = getIt.get<DatabaseService>();
     mediaService = getIt.get<MediaService>();
+    storageService = getIt.get<StorageService>();
     currentUser = ChatUser(
       id: authService.user!.uid,
     );
@@ -45,6 +47,7 @@ class _ChatScreenState extends State<ChatScreen> {
       firstName: widget.userProfile.name,
       profileImage: widget.userProfile.pfpUrl,
     );
+
   }
 
   @override
@@ -80,6 +83,32 @@ class _ChatScreenState extends State<ChatScreen> {
                 IconButton(
                   onPressed: () async {
                     File? file = await mediaService.getImageFromGallery();
+                    if (file != null) {
+                      String chatId = generateChatID(
+                        uid1: currentUser!.id,
+                        uid2: otherUser!.id,
+                      );
+
+                      String? downloadURL =
+                          await storageService.uploadImageToChat(
+                        file: file,
+                        chatId: chatId,
+                      );
+                      if (downloadURL != null) {
+                        ChatMessage chatMessage = ChatMessage(
+                          user: currentUser!,
+                          createdAt: DateTime.now(),
+                          medias: [
+                            ChatMedia(
+                              url: downloadURL,
+                              fileName: "",
+                              type: MediaType.image,
+                            )
+                          ],
+                        );
+                        sendMessage(chatMessage);
+                      }
+                    }
                   },
                   icon: const Icon(
                     Icons.image,
@@ -97,28 +126,59 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> sendMessage(ChatMessage chatMessage) async {
-    Message message = Message(
-      senderID: currentUser!.id,
-      content: chatMessage.text,
-      messageType: MessageType.Text,
-      sentAt: Timestamp.fromDate(
-        chatMessage.createdAt,
-      ),
-    );
-    await databaseService.sendChatMessage(
-      currentUser!.id,
-      otherUser!.id,
-      message,
-    );
+    if (chatMessage.medias?.isNotEmpty ?? false) {
+      if (chatMessage.medias!.first.type == MediaType.image) {
+        Message message = Message(
+          senderID: chatMessage.user.id,
+          content: chatMessage.medias!.first.url,
+          messageType: MessageType.Image,
+          sentAt: Timestamp.fromDate(
+            chatMessage.createdAt,
+          ),
+        );
+        await databaseService.sendChatMessage(
+          currentUser!.id,
+          otherUser!.id,
+          message,
+        );
+      }
+    } else {
+      Message message = Message(
+        senderID: currentUser!.id,
+        content: chatMessage.text,
+        messageType: MessageType.Text,
+        sentAt: Timestamp.fromDate(
+          chatMessage.createdAt,
+        ),
+      );
+      await databaseService.sendChatMessage(
+        currentUser!.id,
+        otherUser!.id,
+        message,
+      );
+    }
   }
 
   List<ChatMessage> generateChatMessagesList(List<Message> messages) {
     List<ChatMessage> chatMessages = messages.map((m) {
-      return ChatMessage(
-        user: m.senderID == currentUser!.id ? currentUser! : otherUser!,
-        text: m.content!,
-        createdAt: m.sentAt!.toDate(),
-      );
+      if (m.messageType == MessageType.Image) {
+        return ChatMessage(
+            user: m.senderID == currentUser!.id ? currentUser! : otherUser!,
+            createdAt: m.sentAt!.toDate(),
+            medias: [
+              ChatMedia(
+                url: m.content!,
+                fileName: "",
+                type: MediaType.image,
+              ),
+            ]);
+      } else {
+        return ChatMessage(
+          user: m.senderID == currentUser!.id ? currentUser! : otherUser!,
+          text: m.content!,
+          createdAt: m.sentAt!.toDate(),
+        );
+      }
     }).toList();
     chatMessages.sort((a, b) {
       return b.createdAt.compareTo(
